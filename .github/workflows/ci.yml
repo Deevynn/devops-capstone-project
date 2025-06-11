@@ -1,24 +1,25 @@
 name: CI Build
-
 on:
   push:
-    branches: [main, add-ci-build]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: python:3.9-slim
 
     services:
       postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
+        image: postgres:alpine
         ports:
           - 5432:5432
+        env:
+          POSTGRES_PASSWORD: pgs3cr3t
+          POSTGRES_DB: testdb
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -26,13 +27,8 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
 
       - name: Install dependencies
         run: |
@@ -44,14 +40,7 @@ jobs:
           flake8 service --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 service --count --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          until pg_isready -h localhost -p 5432; do
-            echo "Waiting for postgres..."
-            sleep 2
-          done
-
-      - name: Run unit tests with Nose
-        run: nosetests -v --with-spec --spec-color --with-coverage --cover-package=service
+      - name: Run unit tests with nose
+        run: nosetests
         env:
-          DATABASE_URI: postgresql://postgres:postgres@localhost:5432/testdb
+          DATABASE_URI: "postgresql://postgres:pgs3cr3t@postgres:5432/testdb"
